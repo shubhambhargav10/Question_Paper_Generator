@@ -6,7 +6,9 @@
 let state = {
   currentStep: 1,
   totalMarks: 30,
-  sections: []
+  sections: [],
+  mode: null,
+  activeSection: 0
   // Each section: { name, type, marks, count, attemptCount, files:[], questions:[] }
 };
 
@@ -20,11 +22,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const marks = btn.dataset.marks;
       const customInput = document.getElementById("total_marks");
       if (marks === "custom") {
-        customInput.style.display = "block";
+        customInput.hidden = false;
         customInput.focus();
         state.totalMarks = parseInt(customInput.value) || 30;
       } else {
-        customInput.style.display = "none";
+        customInput.hidden = true;
         state.totalMarks = parseInt(marks);
         customInput.value = state.totalMarks;
       }
@@ -64,6 +66,18 @@ function validateStep1() {
   return true;
 }
 
+function startManualBuild() {
+  if (!validateStep1()) return;
+  state.mode = "manual";
+  goToStep(2);
+}
+
+function startSmartImport() {
+  if (!validateStep1()) return;
+  state.mode = "smart";
+  document.getElementById("bulk-upload-input").click();
+}
+
 // ─── Step 2: Init ─────────────────────────────────────────────────────────────
 async function initStep2() {
   document.getElementById("target-marks").textContent = state.totalMarks;
@@ -86,13 +100,46 @@ async function initStep2() {
 
   renderAllSections();
   updateMarksSummary();
+
+  const isSmart = state.mode === "smart";
+  document.getElementById("editor-mode-label").textContent = isSmart ? "Imported paper" : "Manual paper builder";
+  document.getElementById("editor-title").textContent = isSmart ? "Review your imported paper" : "Edit your question paper";
+  document.getElementById("editor-hint").textContent = isSmart
+    ? "Questions have been grouped into sections. Select a section to review or refine it."
+    : "Select a section to set its structure and add its questions.";
+  const summary = document.getElementById("ai-summary");
+  summary.hidden = !isSmart;
+  if (isSmart) {
+    const questionCount = state.sections.reduce((sum, sec) => sum + sec.questions.length, 0);
+    document.getElementById("ai-summary-title").textContent = `${state.sections.length} section${state.sections.length === 1 ? "" : "s"} and ${questionCount} question${questionCount === 1 ? "" : "s"} imported`;
+  }
 }
 
 // ─── Render all sections ──────────────────────────────────────────────────────
 function renderAllSections() {
   const container = document.getElementById("sections-container");
   container.innerHTML = "";
-  state.sections.forEach((_, idx) => renderSection(idx));
+  if (state.sections.length === 0) return;
+  if (state.activeSection >= state.sections.length) state.activeSection = 0;
+  renderPaperOutline();
+  renderSection(state.activeSection);
+}
+
+function renderPaperOutline() {
+  const nav = document.getElementById("section-nav");
+  if (!nav) return;
+  nav.innerHTML = state.sections.map((sec, idx) => {
+    const active = idx === state.activeSection ? "active" : "";
+    const count = sec.questions.length ? `${sec.questions.length}/${sec.count}` : `${sec.count} Qs`;
+    return `<button type="button" class="section-nav-item ${active}" onclick="selectSection(${idx})">
+      <span class="nav-letter">${escapeHtml(sec.name)}</span><span class="nav-section-name">${escapeHtml(sec.type)}</span><span class="nav-meta">${count}</span>
+    </button>`;
+  }).join("");
+}
+
+function selectSection(idx) {
+  state.activeSection = idx;
+  renderAllSections();
 }
 
 function renderSection(idx) {
@@ -108,6 +155,7 @@ function renderSection(idx) {
   labelInput.value = sec.name;
   labelInput.addEventListener("input", e => {
     state.sections[idx].name = e.target.value;
+    renderPaperOutline();
   });
 
   // Editable title
@@ -115,6 +163,7 @@ function renderSection(idx) {
   titleInput.value = sec.type;
   titleInput.addEventListener("input", e => {
     state.sections[idx].type = e.target.value;
+    renderPaperOutline();
   });
 
   // Marks input
@@ -195,8 +244,8 @@ function addSection() {
     name: newName, type: "New Section", marks: 1,
     count: 5, attemptCount: null, note: "", files: [], questions: []
   });
-  const idx = state.sections.length - 1;
-  renderSection(idx);
+  state.activeSection = state.sections.length - 1;
+  renderAllSections();
   updateMarksSummary();
 }
 
@@ -204,7 +253,7 @@ function deleteSection(btn) {
   const card = btn.closest(".section-card-v2");
   const idx = parseInt(card.dataset.secIdx);
   state.sections.splice(idx, 1);
-  // Re-render all (to fix data-sec-idx)
+  state.activeSection = Math.max(0, Math.min(state.activeSection, state.sections.length - 1));
   renderAllSections();
   updateMarksSummary();
 }
@@ -343,7 +392,7 @@ function renderSectionQuestions(idx, card) {
     </div>
   `).join("");
 
-  listEl.style.display = "block";
+  listEl.hidden = false;
 }
 
 function removeQuestion(secIdx, qIdx) {
@@ -463,8 +512,8 @@ async function generatePaper() {
   };
 
   document.getElementById("generate-btn").disabled = true;
-  document.getElementById("generate-status").style.display = "flex";
-  document.getElementById("generate-success").style.display = "none";
+  document.getElementById("generate-status").hidden = false;
+  document.getElementById("generate-success").hidden = true;
 
   try {
     const endpoint = generateSetB ? "/api/generate-both" : "/api/generate";
@@ -491,13 +540,14 @@ async function generatePaper() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    document.getElementById("generate-status").style.display = "none";
-    document.getElementById("post-generate-actions").style.display = "flex";
+    document.getElementById("generate-status").hidden = true;
+    document.getElementById("generate-success").hidden = false;
+    document.getElementById("post-generate-actions").hidden = false;
     showToast("Question paper generated successfully!", "success");
   } catch (err) {
     showToast("Error: " + err.message, "error");
   } finally {
-    document.getElementById("generate-status").style.display = "none";
+    document.getElementById("generate-status").hidden = true;
     document.getElementById("generate-btn").disabled = false;
     hideLoader();
   }
@@ -505,10 +555,11 @@ async function generatePaper() {
 
 // ─── Reset ────────────────────────────────────────────────────────────────────
 function resetApp() {
-  state = { currentStep: 1, totalMarks: 30, sections: [] };
+  state = { currentStep: 1, totalMarks: 30, sections: [], mode: null, activeSection: 0 };
   document.getElementById("grade").value   = "";
   document.getElementById("subject").value = "";
-  document.getElementById("generate-success").style.display = "none";
+  document.getElementById("generate-success").hidden = true;
+  document.getElementById("post-generate-actions").hidden = true;
   document.getElementById("generate-btn").disabled = false;
   goToStep(1);
 }
@@ -600,6 +651,9 @@ async function handleBulkUpload(input) {
       });
     });
     
+    state.activeSection = 0;
+    state.mode = "smart";
+    goToStep(2);
     renderAllSections();
     updateMarksSummary();
     showToast(`Successfully extracted ${questions.length} questions across ${state.sections.length} sections!`, "success");
@@ -719,11 +773,11 @@ function openBlueprintModal() {
   const listEl = document.getElementById("blueprint-file-list");
   if (listEl) {
     listEl.innerHTML = "";
-    listEl.style.display = "none";
+    listEl.hidden = true;
   }
   const labelEl = document.getElementById("blueprint-upload-label");
   if (labelEl) labelEl.textContent = "Upload File(s) (PDF, DOCX, Images)";
-  document.getElementById("blueprint-modal").style.display = "flex";
+  document.getElementById("blueprint-modal").hidden = false;
 }
 
 function clearBlueprintFiles() {
@@ -732,7 +786,7 @@ function clearBlueprintFiles() {
   const listEl = document.getElementById("blueprint-file-list");
   if (listEl) {
     listEl.innerHTML = "";
-    listEl.style.display = "none";
+    listEl.hidden = true;
   }
   const labelEl = document.getElementById("blueprint-upload-label");
   if (labelEl) labelEl.textContent = "Upload File(s) (PDF, DOCX, Images)";
@@ -748,11 +802,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!listEl) return;
       if (files.length === 0) {
         listEl.innerHTML = "";
-        listEl.style.display = "none";
+        listEl.hidden = true;
         if (labelEl) labelEl.textContent = "Upload File(s) (PDF, DOCX, Images)";
         return;
       }
-      listEl.style.display = "block";
+      listEl.hidden = false;
       if (labelEl) labelEl.textContent = `${files.length} file(s) selected`;
       listEl.innerHTML = `
         <div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center;">
@@ -765,7 +819,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function submitBlueprint() {
-  document.getElementById("blueprint-modal").style.display = "none";
+  document.getElementById("blueprint-modal").hidden = true;
   showLoader("Generating Blueprint...", "Analyzing your syllabus and mapping chapters to the question paper distribution.");
   
   const textVal = document.getElementById("blueprint-text").value.trim();
