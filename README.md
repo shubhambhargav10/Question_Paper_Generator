@@ -1,4 +1,4 @@
-# Question Paper Generator – Podar World School
+# Question Paper Generator
 
 A web app that generates professionally formatted Word (.docx) question papers for Podar World School Vapi.
 
