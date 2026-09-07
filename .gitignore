@@ -1,0 +1,21 @@
+# Python & Environment
+.venv/
+env/
+venv/
+.env
+.env.local
+
+# Bytecode & Caches
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# macOS & Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Local test outputs & temporary test files
+*.docx
+patch_auto_fallback.py

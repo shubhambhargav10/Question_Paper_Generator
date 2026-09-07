@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Question Paper Generator – Podar World School</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="header-logo">📄</div>
+      <div>
+        <h1>Question Paper Generator</h1>
+        <p>Podar World School Vapi</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- Step progress bar -->
+  <div class="steps-bar">
+    <div class="step active" id="step-indicator-1">
+      <div class="step-num">1</div>
+      <div class="step-label">Paper Details</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="step-indicator-2">
+      <div class="step-num">2</div>
+      <div class="step-label">Sections & Questions</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="step-indicator-3">
+      <div class="step-num">3</div>
+      <div class="step-label">Review & Generate</div>
+    </div>
+  </div>
+
+  <main class="container">
+
+    <!-- ─── STEP 1: Paper Details ─────────────────────────────────────────── -->
+    <section class="step-panel active" id="step-1">
+      <h2>Paper Details</h2>
+      <p class="hint">Fill in the basic information for the question paper.</p>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="school_name">School Name</label>
+          <input type="text" id="school_name" class="form-control" value="PODAR WORLD SCHOOL VAPI" />
+        </div>
+
+        <div class="form-group">
+          <label for="grade">Class / Grade</label>
+          <input type="text" id="grade" class="form-control" placeholder="e.g. XI" />
+        </div>
+
+        <div class="form-group">
+          <label for="subject">Subject</label>
+          <input type="text" id="subject" class="form-control" placeholder="e.g. ECONOMICS" />
+        </div>
+
+        <div class="form-group">
+          <label for="exam_type">Exam Type</label>
+          <input type="text" id="exam_type" class="form-control" value="Half Yearly" placeholder="e.g. Half Yearly, Periodic Test" />
+        </div>
+
+        <div class="form-group">
+          <label>Total Marks</label>
+          <div class="marks-selector">
+            <button class="mark-btn active" data-marks="30">30</button>
+            <button class="mark-btn" data-marks="50">50</button>
+            <button class="mark-btn" data-marks="80">80</button>
+            <button class="mark-btn" data-marks="custom">Custom</button>
+          </div>
+          <input type="number" id="total_marks" value="30" min="1" class="form-control custom-marks-input" style="display:none; margin-top: 0.5rem;" placeholder="Enter marks" />
+        </div>
+
+        <div class="form-group">
+          <label for="duration">Duration</label>
+          <input type="text" id="duration" class="form-control" value="3 hours" />
+        </div>
+
+        <div class="form-group">
+          <label for="date_str">Date</label>
+          <input type="text" id="date_str" class="form-control" placeholder=".07.2026" />
+        </div>
+      </div>
+
+      <div class="step-actions">
+        <button class="btn btn-primary" onclick="goToStep(2)">Next: Configure Sections →</button>
+      </div>
+    </section>
+
+    <!-- ─── STEP 2: Sections & Questions ──────────────────────────────────── -->
+    <section class="step-panel" id="step-2">
+      <div class="step2-header">
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <h2>Sections &amp; Questions</h2>
+            <button class="btn btn-secondary" onclick="document.getElementById('bulk-upload-input').click()" style="margin-left: 15px; padding: 6px 12px; font-size: 0.9em;">
+              <i class="fas fa-file-upload"></i> Auto-Extract Full Paper
+            </button>
+            <input type="file" id="bulk-upload-input" style="display: none" accept=".docx,.txt,.pdf" onchange="handleBulkUpload(this)">
+          </div>
+          <p class="hint">Upload a full question paper to auto-extract all sections, or configure them manually.</p>
+        </div>
+        <div class="marks-pill-wrap">
+          <div class="marks-pill" id="marks-pill">
+            <span id="configured-marks">0</span> / <span id="target-marks">0</span> marks
+          </div>
+        </div>
+      </div>
+
+      <!-- Sections list -->
+      <div id="sections-container"></div>
+
+      <!-- Add section button -->
+      <button class="btn-add-section" onclick="addSection()">
+        <span>＋</span> Add Section
+      </button>
+
+      <div class="step-actions">
+        <button class="btn btn-secondary" onclick="goToStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="goToStep(3)">Next: Review & Generate →</button>
+      </div>
+    </section>
+
+    <!-- ─── STEP 3: Review & Generate ────────────────────────────────────── -->
+    <section class="step-panel" id="step-3">
+      <h2>Review &amp; Generate</h2>
+      <p class="hint">Review your question paper, then generate it.</p>
+
+      <!-- Paper summary card -->
+      <div class="review-card">
+        <div class="review-header" id="rev-school"></div>
+        <div class="review-grid">
+          <div><label>Class</label><span id="rev-grade">—</span></div>
+          <div><label>Subject</label><span id="rev-subject">—</span></div>
+          <div><label>Total Marks</label><span id="rev-marks">—</span></div>
+          <div><label>Duration</label><span id="rev-duration">—</span></div>
+          <div><label>Date</label><span id="rev-date">—</span></div>
+        </div>
+      </div>
+
+      <!-- Section-wise review -->
+      <div id="review-sections"></div>
+
+      <!-- Set B option -->
+      <div class="set-b-box">
+        <label class="checkbox-label">
+          <input type="checkbox" id="generate-set-b" />
+          <span>Also generate <strong>Set B</strong> (questions shuffled within each section)</span>
+        </label>
+      </div>
+
+      <!-- Generate button -->
+      <div class="step-actions generate-actions">
+        <button class="btn btn-secondary" onclick="goToStep(2)">← Back</button>
+        <button class="btn btn-success" id="generate-btn" onclick="generatePaper()">
+          📄 Generate Question Paper
+        </button>
+      </div>
+
+      <!-- Post Generate Actions (hidden initially) -->
+      <div id="post-generate-actions" style="display:none; flex-direction: column; gap: 1rem; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+        <h3 style="margin-bottom: 0.5rem; font-size: 1.1rem; color: var(--primary);">Additional Options</h3>
+        <div style="display: flex; gap: 1rem;">
+          <button class="btn btn-primary" id="generate-ans-btn" onclick="generateAnswerKey()">
+            🔑 Generate Answer Key
+          </button>
+          <button class="btn btn-primary" onclick="openBlueprintModal()">
+            📊 Generate Blueprint
+          </button>
+        </div>
+      </div>
+
+      <div id="generate-status" style="display:none">
+        <div class="spinner"></div>
+        <p>Generating your question paper...</p>
+      </div>
+
+      <div id="generate-success" class="success-box" style="display:none">
+        <div class="success-icon">✅</div>
+        <h3>Question Paper Generated!</h3>
+        <p>Your file has been downloaded. Check your Downloads folder.</p>
+        <button class="btn btn-primary" onclick="resetApp()">Generate Another Paper</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast notifications -->
+  <div id="toast-container"></div>
+
+  <!-- Section card template (hidden) -->
+  <template id="section-template">
+    <div class="section-card-v2" data-sec-idx="">
+
+      <!-- Card header: label + title + delete -->
+      <div class="sc-header">
+        <div class="sc-header-left">
+          <div class="sc-label-wrap">
+            <span class="sc-prefix">Section</span>
+            <input type="text" class="sc-label-input" value="A" maxlength="4" title="Section label" />
+          </div>
+          <input type="text" class="sc-title-input" value="Multiple Choice Questions" title="Section heading" />
+        </div>
+        <button class="sc-delete-btn" onclick="deleteSection(this)" title="Delete section">🗑</button>
+      </div>
+
+      <!-- Meta row: marks | total Qs | attempt any -->
+      <div class="sc-meta-row">
+        <div class="sc-meta-field">
+          <label>Marks / question</label>
+          <input type="number" class="sc-marks-input" value="1" min="1" onchange="updateMarksSummary()" />
+        </div>
+        <div class="sc-meta-field">
+          <label>Total Qs in paper</label>
+          <input type="number" class="sc-count-input" value="8" min="1" onchange="updateMarksSummary()" />
+        </div>
+        <div class="sc-meta-field">
+          <label>Attempt any <span class="optional-tag">optional</span></label>
+          <input type="number" class="sc-attempt-input" min="1" placeholder="e.g. 10" onchange="updateMarksSummary()" />
+        </div>
+        <div class="sc-meta-field sc-calc-field">
+          <label>Section total</label>
+          <span class="sc-section-total">8 marks</span>
+        </div>
+      </div>
+
+      <!-- Upload area for this section -->
+      <div class="sc-upload-area">
+        <div class="sc-upload-zone">
+          <span class="upload-icon-sm">📁</span>
+          <span>Drop files or <label class="upload-link-sm">browse</label></span>
+          <span class="upload-hint-sm">Images, PDF, Word, screenshots</span>
+          <input type="file" class="sc-file-input" multiple accept=".jpg,.jpeg,.png,.pdf,.docx,.doc,.txt,.webp" style="display:none" />
+        </div>
+        <div class="sc-file-pills"></div>
+      </div>
+
+      <!-- OR paste text -->
+      <div class="sc-paste-wrap">
+        <label class="sc-paste-label">Or paste questions for this section:</label>
+        <textarea class="sc-paste-input" rows="3" placeholder="Paste questions here..."></textarea>
+      </div>
+
+      <!-- Extract button + status -->
+      <div class="sc-extract-row">
+        <button class="btn btn-sm btn-extract" onclick="extractSectionQuestions(this)">
+          ✨ Extract Questions with AI
+        </button>
+        <div class="sc-extract-status" style="display:none">
+          <div class="spinner-sm"></div><span>Extracting...</span>
+        </div>
+      </div>
+
+      <!-- Extracted questions list for this section -->
+      <div class="sc-questions-list" style="display:none">
+        <div class="sc-q-header">
+          <span class="sc-q-title">Questions <span class="sc-q-badge badge">0</span></span>
+          <span class="sc-q-needed"></span>
+        </div>
+        <div class="sc-q-items"></div>
+      </div>
+
+    </div>
+  </template>
+
+  <div id="global-loader">
+    <div class="loader-animation">
+      <div class="loader-circle"></div>
+      <div class="loader-circle"></div>
+      <div class="loader-circle"></div>
+    </div>
+    <div class="spinner-text" id="gl-title">Analyzing Paper...</div>
+    <div class="spinner-subtext" id="gl-subtitle">Our AI is extracting sections and questions. This might take a moment.</div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="app.js?v=3"></script>
+</body>
+</html>
+
+<!-- Blueprint Upload Modal -->
+<div id="blueprint-modal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:var(--bg-panel); border:1px solid var(--border); border-radius:12px; padding:2rem; width:90%; max-width:500px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+    <h3 style="margin-top:0; color:var(--text-main);">Generate Blueprint</h3>
+    <p style="color:var(--text-dim); font-size:0.9rem; margin-bottom:1.5rem;">Upload the syllabus / portion (PDF, DOCX, Image, or plain text). Our AI will analyze the chapters and generate a mapped Blueprint based on your generated question paper.</p>
+    
+    <textarea id="blueprint-text" class="form-control" rows="4" placeholder="Or paste the chapters/portion here..." style="margin-bottom:1rem; width:100%;"></textarea>
+    
+    <label class="btn-add-section" style="padding: 0.85rem; margin-bottom: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+      <span>📁</span> <span id="blueprint-upload-label">Upload File(s) (PDF, DOCX, Images)</span>
+      <input type="file" id="blueprint-file" multiple accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp,.txt" style="display:none;" />
+    </label>
+    <div id="blueprint-file-list" style="margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--accent-primary); display: none;"></div>
+    
+    <div style="display:flex; justify-content:flex-end; gap:1rem;">
+      <button class="btn btn-secondary" onclick="document.getElementById('blueprint-modal').style.display='none'">Cancel</button>
+      <button class="btn btn-primary" onclick="submitBlueprint()">Generate</button>
+    </div>
+  </div>
+</div>
